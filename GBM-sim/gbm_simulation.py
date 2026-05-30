@@ -14,7 +14,7 @@ def fetch_inputs_stock(ticker):
     log_returns= np.log(closing_prices/closing_prices.shift(1))
     log_returns = log_returns.dropna()
     daily_mean= log_returns.mean()
-    mean_ann= daily_mean*252# historical drift u
+    mean_ann= daily_mean*252# Historical drift u
 
     daily_sigma= log_returns.std()
     sigma_ann= daily_sigma*np.sqrt(252)# value of sigma
@@ -29,7 +29,7 @@ def gbm_func(price,r,sigma,dt,z):
 def start():
     print("This is a stock price simulator which uses GBM simulations. Select one of the following:\n"
     "1. Simulate using own inputs\n"
-    "2. Simulate a PSX stock")
+    "2. Simulate a PSX stock\n")
     choice= input("Option: ")
     return choice
 
@@ -38,8 +38,7 @@ choice= start()
 if choice== "1":
     S0= float(input("Initial Stock Price: "))
     sigma= float(input("Volatility (Sigma): "))
-    r= float(input("Risk-free rate: "))
-    time= int(input("Time Period: "))
+    time= float(input("Time Period (in Years): "))
     option_type= input("Option Type(call or put): ")
     k= float(input("Strike Price: "))
 
@@ -51,14 +50,13 @@ elif choice== "2":
             break
         except:
             print('Invalid Ticker. Please try again.')
+    print(f"\nThe current price of the stock is {S0:.2f}\n")
     option_type= input("Option type(call or put): ")
     k= float(input("Strike Price: "))
-    time= int(input("Time Period: "))
+    time= float(input("Time Period (in Years): "))
 
 
 r = 0.158# taken from investing.com (https://www.investing.com/rates-bonds/pakistan-1-year-bond-yield)
-k= 110
-
 n= 252 #Time Steps
 dt=time/n
 m=1000  #Number of Paths
