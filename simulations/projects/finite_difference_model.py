@@ -46,7 +46,60 @@ time_grid= np.linspace(0,t,k)
 price_grid= np.linspace(0,s_max,i)
 v_mat= np.zeros((i,k))
 
-#Boundary Condition Option Type Call
+
+#Implicit Scheme:
+kmat= np.zeros((i,i))
+
+if o_type=="call":
+    v_mat[:,-1]= np.maximum(price_grid-e,0)
+elif o_type=="put":
+    v_mat[:,-1]= np.maximum(e-price_grid,0)
+
+for x in range(i):
+    a= (-.5*x**2*sigma**2+.5*x*r)*dt
+    b= 1+(x**2*sigma**2+r)*dt
+    c= (-.5*x**2*sigma**2-.5*x*r)*dt
+    if x>0:
+        kmat[x,x-1]=a
+    kmat[x,x]=b
+    if x<i-1:
+        kmat[x,x+1]=c
+
+print(kmat)
+
+for l in range(k-1,0,-1):
+    v_mat[:,l-1]= np.linalg.solve(kmat,v_mat[:,l])
+    #call option
+    if o_type=="call":
+        v_mat[0,l-1]=0 #Lower
+        v_mat[-1,l-1]= s_max - e*np.exp(-r*time_grid[l-1]) #Upper
+    if o_type=="put":
+        v_mat[0,l-1]= e*np.exp(-r*time_grid[l-1]) #Lower
+        v_mat[-1,l-1]=0 #Upper
+ 
+
+print(v_mat[:10,-1])   # maturity
+print(v_mat[:10,-2])   # first backward step
+
+print(v_mat[:10,0])
+print(price_grid[:10])
+
+plt.plot(price_grid, v_mat[:,0])
+plt.xlabel("Stock Price")
+plt.ylabel("Option Value")
+plt.title("Option Value at t=0")
+plt.grid(True)
+plt.show()
+
+plt.plot(price_grid, v_mat[:,-1], label="Payoff at Maturity")
+plt.plot(price_grid, v_mat[:,0], label="Option Value Today")
+plt.legend()
+plt.grid(True)
+plt.show()
+'''
+#Explicit Scheme:
+
+#Boundary Condition
 if o_type=="call":
     v_mat[:,-1]= np.maximum(price_grid-e,0) #Final Condition
     v_mat[0,:] = 0 #Lower Boundary
@@ -66,14 +119,13 @@ elif o_type=="put":
     elif o_style=="american":
         v_mat[0,:] = e
 
-
 for l in range(k-1,0,-1):
     for x in range(1,i-1):
         A= ((.5)*(x**2)*(sigma**2)-.5*(x)*(r))*dt
         B= 1-((x**2)*sigma**2+r)*dt
         C= ((.5)*(x**2)*(sigma**2)+.5*(x)*(r))*dt
         if o_style=="european":
-            v_mat[x,l-1]= A*v_mat[x-1,l]+B*v_mat[x,l]+C*v_mat[x+1,l]
+            v_mat[x,l-1]= A*v_mat[x-1,l]+B*v_mat[x,l]+C*v_mat[x+1,l]= A*v_mat[x-1,l]+B*v_mat[x,l]+C*v_mat[x+1,l]
         elif o_style=="american":
             contin_val= A*v_mat[x-1,l]+B*v_mat[x,l]+C*v_mat[x+1,l]
             if o_type=="call":
@@ -83,9 +135,9 @@ for l in range(k-1,0,-1):
             v_mat[x,l-1]= np.maximum(contin_val,exercise_val)
 
 
-'''
+
 s0= float(input("Please enter the current Stock price for option value: "))
-'''
+
 s0= 250
 value_index= np.argmin(np.abs(price_grid-s0))
 option_val= v_mat[value_index,0]
@@ -94,7 +146,7 @@ print("\n===============================================" )
 print("Model Summary Statistics:\n" \
     "---------------------------------------------" )
 time.sleep(1)
-''''
+
 print(f"Option Type: {o_type} \n" \
 f"Current Stock Price: {s0}\n" \
 f"Strike Price: {e}\n" \
@@ -109,7 +161,7 @@ print("Finite Difference Option Price\n"\
 f"Option Value: {option_val:.2f}\n" \
 "===============================================" )
 
-'''
+
 np.set_printoptions(precision=2)
 
 print ("-------------------")
@@ -132,3 +184,5 @@ plt.plot(price_grid, v_mat[:,0], label="Option Value Today")
 plt.legend()
 plt.grid(True)
 plt.show()
+
+'''
