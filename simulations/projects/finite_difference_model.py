@@ -40,49 +40,64 @@ i=50 #stock Steps
 t= 2
 dt= t/k
 s_max= 400
-o_style= "american"
+o_style= "european"
 #Creating Grid
 time_grid= np.linspace(0,t,k)
 price_grid= np.linspace(0,s_max,i)
 v_mat= np.zeros((i,k))
 
-
-#Implicit Scheme:
-kmat= np.zeros((i,i))
+#Applying Bounds to the Grid
 
 if o_type=="call":
-    v_mat[:,-1]= np.maximum(price_grid-e,0)
+    v_mat[:,-1]= np.maximum(price_grid-e,0) #Final Condition
+    v_mat[0,:] = 0 #Lower Boundary
+    if o_style=="european":
+        for n in range(k):
+            tau= t- time_grid[n]
+            v_mat[-1,n]= s_max - e*np.exp(-r*tau)
+    elif o_style=="american":
+        v_mat[-1,:]= s_max- e
 elif o_type=="put":
-    v_mat[:,-1]= np.maximum(e-price_grid,0)
+    v_mat[:,-1]= np.maximum(e-price_grid,0) #Final Condition
+    v_mat[-1,:] = 0 #Upper Boundary
+    if o_style=="european":
+        for n in range(k):
+            tau= t- time_grid[n]#Lower Boundary
+            v_mat[0,n]= e*np.exp(-r*tau)
+    elif o_style=="american":
+        v_mat[0,:] = e
 
-for x in range(i):
-    a= (-.5*x**2*sigma**2+.5*x*r)*dt
-    b= 1+(x**2*sigma**2+r)*dt
-    c= (-.5*x**2*sigma**2-.5*x*r)*dt
+#Implicit Scheme:
+
+kmat= np.zeros((i-2,i-2))
+rhs=np.zeros((i-2))
+
+upper_c=0
+lower_a=0
+for x in range(i-2):
+    n= x+1
+    a= (-.5*n**2*sigma**2+.5*n*r)*dt
+    b= 1+(n**2*sigma**2+r)*dt
+    c= (-.5*n**2*sigma**2-.5*n*r)*dt
     if x>0:
         kmat[x,x-1]=a
+    elif x==0:
+        lower_a=a
     kmat[x,x]=b
-    if x<i-1:
+    if x<i-3:
         kmat[x,x+1]=c
-
-print(kmat)
+    elif x==i-3:
+        upper_c=c
 
 for l in range(k-1,0,-1):
-    v_mat[:,l-1]= np.linalg.solve(kmat,v_mat[:,l])
-    #call option
-    if o_type=="call":
-        v_mat[0,l-1]=0 #Lower
-        v_mat[-1,l-1]= s_max - e*np.exp(-r*time_grid[l-1]) #Upper
-    if o_type=="put":
-        v_mat[0,l-1]= e*np.exp(-r*time_grid[l-1]) #Lower
-        v_mat[-1,l-1]=0 #Upper
- 
+    rhs= v_mat[1:-1,l].copy()
+    rhs[0] -= lower_a*v_mat[0,l]
+    rhs[-1] -= upper_c*v_mat[-1,l]
 
-print(v_mat[:10,-1])   # maturity
-print(v_mat[:10,-2])   # first backward step
+    v_mat[1:-1,l-1]= np.linalg.solve(kmat,rhs)
 
-print(v_mat[:10,0])
-print(price_grid[:10])
+v_implicit= v_mat.copy()
+print(v_mat[:-10,0])
 
 plt.plot(price_grid, v_mat[:,0])
 plt.xlabel("Stock Price")
@@ -96,10 +111,10 @@ plt.plot(price_grid, v_mat[:,0], label="Option Value Today")
 plt.legend()
 plt.grid(True)
 plt.show()
-'''
-#Explicit Scheme:
 
-#Boundary Condition
+#Explicit Scheme:
+v_mat = np.zeros((i,k))
+
 if o_type=="call":
     v_mat[:,-1]= np.maximum(price_grid-e,0) #Final Condition
     v_mat[0,:] = 0 #Lower Boundary
@@ -125,7 +140,7 @@ for l in range(k-1,0,-1):
         B= 1-((x**2)*sigma**2+r)*dt
         C= ((.5)*(x**2)*(sigma**2)+.5*(x)*(r))*dt
         if o_style=="european":
-            v_mat[x,l-1]= A*v_mat[x-1,l]+B*v_mat[x,l]+C*v_mat[x+1,l]= A*v_mat[x-1,l]+B*v_mat[x,l]+C*v_mat[x+1,l]
+            v_mat[x,l-1]= A*v_mat[x-1,l]+B*v_mat[x,l]+C*v_mat[x+1,l]
         elif o_style=="american":
             contin_val= A*v_mat[x-1,l]+B*v_mat[x,l]+C*v_mat[x+1,l]
             if o_type=="call":
@@ -134,8 +149,14 @@ for l in range(k-1,0,-1):
                 exercise_val= np.maximum(e- price_grid[x],0)
             v_mat[x,l-1]= np.maximum(contin_val,exercise_val)
 
+print(v_mat[:-10,0])
+v_explicit= v_mat.copy()
 
+error= np.abs(v_implicit[:,0]-v_explicit[:,0])
+print(np.max(error))
+print(np.mean(error))
 
+'''
 s0= float(input("Please enter the current Stock price for option value: "))
 
 s0= 250
@@ -161,16 +182,7 @@ print("Finite Difference Option Price\n"\
 f"Option Value: {option_val:.2f}\n" \
 "===============================================" )
 
-
-np.set_printoptions(precision=2)
-
-print ("-------------------")
-
-print(v_mat[:10,-1])   # maturity
-print(v_mat[:10,-2])   # first backward step
-
-print(v_mat[:10,0])
-print(price_grid[:10])
+'''
 
 plt.plot(price_grid, v_mat[:,0])
 plt.xlabel("Stock Price")
@@ -184,5 +196,3 @@ plt.plot(price_grid, v_mat[:,0], label="Option Value Today")
 plt.legend()
 plt.grid(True)
 plt.show()
-
-'''
