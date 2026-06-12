@@ -35,11 +35,11 @@ sigma= .20 #Volatility
 e= 300 #Exercise Price 
 r= .10 #RFR
 o_type= "call"
-k=2000 #Time Steps
-i=50 #stock Steps 
+k=400 #Time Steps
+i=200 #stock Steps 
 t= 2
 dt= t/k
-s_max= 400
+s_max= 3*e
 o_style= "european"
 #Creating Grid
 time_grid= np.linspace(0,t,k)
@@ -68,7 +68,7 @@ elif o_type=="put":
         v_mat[0,:] = e
 
 #Implicit Scheme:
-
+'''
 kmat= np.zeros((i-2,i-2))
 rhs=np.zeros((i-2))
 
@@ -111,7 +111,7 @@ plt.plot(price_grid, v_mat[:,0], label="Option Value Today")
 plt.legend()
 plt.grid(True)
 plt.show()
-
+'''
 #Explicit Scheme:
 v_mat = np.zeros((i,k))
 
@@ -134,6 +134,8 @@ elif o_type=="put":
     elif o_style=="american":
         v_mat[0,:] = e
 
+'''
+#Excplicit Scheme Manual Recursion Method by using steps on the grid
 for l in range(k-1,0,-1):
     for x in range(1,i-1):
         A= ((.5)*(x**2)*(sigma**2)-.5*(x)*(r))*dt
@@ -148,13 +150,70 @@ for l in range(k-1,0,-1):
             elif o_type=="put":
                 exercise_val= np.maximum(e- price_grid[x],0)
             v_mat[x,l-1]= np.maximum(contin_val,exercise_val)
+'''
+'''
+emat=np.zeros((i-2,i))
+for x in range(i-2):
+    n= x+1
+    A= ((.5)*(n**2)*(sigma**2)-.5*(n)*(r))*dt
+    emat[x,x]=A
+    B= 1-((n**2)*sigma**2+r)*dt
+    emat[x,x+1]=B
+    C= ((.5)*(n**2)*(sigma**2)+.5*(n)*(r))*dt
+    emat[x,x+2]=C
 
-print(v_mat[:-10,0])
+print(emat[-1,:])
+
+for l in range(k-1,0,-1):
+    v_mat[1:-1,l-1]= emat @ v_mat[:,l]
+
+print(v_mat[:,-1])
+    
+print(v_mat[:-10,k-2])
 v_explicit= v_mat.copy()
 
 error= np.abs(v_implicit[:,0]-v_explicit[:,0])
 print(np.max(error))
 print(np.mean(error))
+'''
+#Crank Nicholson
+
+cnmat= np.zeros((i-2,i-2))
+I = np.eye(i-2)
+A_lower=0
+C_upper=0
+
+for x in range(i-2):
+    n=x+1
+    A= 1/4*dt*(sigma**2*n**2-r*n)
+    if x==0:
+        A_lower=A
+    elif x>0:
+        cnmat[x,x-1]= A
+    B= -1/2*dt*(sigma**2*n**2+r)
+    cnmat[x,x]= B
+    if x<i-3:
+        C= 1/4*dt*(sigma**2*n**2+r*n)
+        cnmat[x,x+1]=C
+    elif x==i-3:
+        C_upper= C
+
+print(A_lower)
+print(C_upper)
+
+
+matr= I+cnmat.copy()
+matl= I-cnmat.copy()
+for l in range(k-1,0,-1):
+    rhs= (matr) @ v_mat[1:-1,l].copy()
+    rhs[0] += A_lower*v_mat[0,l-1] + A_lower*v_mat[0,l]
+    rhs[-1] += C_upper*v_mat[-1,l-1] + C_upper*v_mat[-1,l]
+    v_mat[1:-1,l-1]=np.linalg.solve(matl,rhs)
+
+print(np.diag(matr)[-10:])
+print(np.diag(matl)[-10:])
+
+
 
 '''
 s0= float(input("Please enter the current Stock price for option value: "))
